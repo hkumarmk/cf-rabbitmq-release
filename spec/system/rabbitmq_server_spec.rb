@@ -36,6 +36,8 @@ RSpec.describe "RabbitMQ server configuration" do
     end
   end
 
+
+
   context 'when properties are set' do
     before(:all) do
       @ha_host = bosh_director.ips_for_job('haproxy', environment.bosh_manifest.deployment_name)[0]
@@ -45,6 +47,10 @@ RSpec.describe "RabbitMQ server configuration" do
       @new_username = 'newusername'
       @new_password = 'newpassword'
 
+      server_key = File.read(File.join(__dir__, '../..', '/spec/assets/server_key.pem'))
+      server_cert = File.read(File.join(__dir__, '../..', '/spec/assets/server_certificate.pem'))
+      ca_cert = File.read(File.join(__dir__, '../..', '/spec/assets/ca_certificate.pem'))
+
       modify_and_deploy_manifest do |manifest|
         manifest['properties']['rabbitmq-server']['disk_alarm_threshold'] = '20000000'
         manifest['properties']['rabbitmq-server']['cluster_partition_handling'] = 'pause_minority'
@@ -53,6 +59,13 @@ RSpec.describe "RabbitMQ server configuration" do
         management_credentials = manifest['properties']['rabbitmq-server']['administrators']['management']
         management_credentials['username'] = @new_username
         management_credentials['password'] = @new_password
+
+        manifest['properties']['rabbitmq-server']['ssl'] = Hash.new
+        manifest['properties']['rabbitmq-server']['ssl']['key'] = server_key
+        manifest['properties']['rabbitmq-server']['ssl']['cert'] = server_cert
+        manifest['properties']['rabbitmq-server']['ssl']['cacert'] = ca_cert
+        manifest['properties']['rabbitmq-server']['ssl']['security_options'] = ['enable_tls1_0']
+
       end
     end
 
@@ -97,76 +110,53 @@ RSpec.describe "RabbitMQ server configuration" do
         expect(code).to eq "401"
       end
     end
+
+    describe "TLS" do
+      it 'should have TLS 1.0 enabled' do
+        expect(tls_version_enabled?(rmq_host, 'tls1')).to be_truthy
+      end
+
+      it 'should have TLS 1.1 enabled' do
+        expect(tls_version_enabled?(rmq_host, 'tls1_1')).to be_truthy
+      end
+
+      it 'should have TLS 1.2 enabled' do
+        expect(tls_version_enabled?(rmq_host, 'tls1_2')).to be_truthy
+      end
+    end
+
+    it 'does not have SSL verification enabled' do
+      expect(ssl_options).to include('{verify,verify_none}')
+    end
+
+    it 'does not have SSL peer validation enabled' do
+      expect(ssl_options).to include('{fail_if_no_peer_cert,false}')
+    end
+
+    it 'has the right SSL verification depth option' do
+      expect(ssl_options).to include('{depth,5}')
+    end
   end
 
-  describe 'SSL' do
-    context 'when is configured' do
-      before(:all) do
-        server_key = File.read(File.join(__dir__, '../..', '/spec/assets/server_key.pem'))
-        server_cert = File.read(File.join(__dir__, '../..', '/spec/assets/server_certificate.pem'))
-        ca_cert = File.read(File.join(__dir__, '../..', '/spec/assets/ca_certificate.pem'))
-
-        modify_and_deploy_manifest do |manifest|
-          @current_manifest = manifest
-
-          manifest['properties']['rabbitmq-server']['ssl'] = Hash.new
-          manifest['properties']['rabbitmq-server']['ssl']['key'] = server_key
-          manifest['properties']['rabbitmq-server']['ssl']['cert'] = server_cert
-          manifest['properties']['rabbitmq-server']['ssl']['cacert'] = ca_cert
-          manifest['properties']['rabbitmq-server']['ssl']['security_options'] = ['enable_tls1_0']
-        end
+  context "when ssl verification properties are set" do
+    before(:all) do
+      modify_and_deploy_manifest do |manifest|
+        manifest['properties']['rabbitmq-server']['ssl']['verify'] = true
+        manifest['properties']['rabbitmq-server']['ssl']['verification_depth'] = 10
+        manifest['properties']['rabbitmq-server']['ssl']['fail_if_no_peer_cert'] = true
       end
+    end
 
-      after(:all) do
-        bosh_director.deploy(environment.bosh_manifest.path)
-      end
+    it 'has the right SSL verification options' do
+      expect(ssl_options).to include('{verify,verify_peer}')
+    end
 
-      context 'when verification and validation is enabled' do
-        before(:all) do
-          @current_manifest['properties']['rabbitmq-server']['ssl']['verify'] = true
-          @current_manifest['properties']['rabbitmq-server']['ssl']['verification_depth'] = 10
-          @current_manifest['properties']['rabbitmq-server']['ssl']['fail_if_no_peer_cert'] = true
-          deploy_manifest(@current_manifest)
-        end
+    it 'has the right SSL verification depth option' do
+      expect(ssl_options).to include('{depth,10}')
+    end
 
-        it 'has the right SSL verification options' do
-          expect(ssl_options).to include('{verify,verify_peer}')
-        end
-
-        it 'has the right SSL verification depth option' do
-          expect(ssl_options).to include('{depth,10}')
-        end
-
-        it 'has the right SSL peer options' do
-          expect(ssl_options).to include('{fail_if_no_peer_cert,true}')
-        end
-      end
-
-      it 'does not have SSL verification enabled' do
-        expect(ssl_options).to include('{verify,verify_none}')
-      end
-
-      it 'does not have SSL peer validation enabled' do
-        expect(ssl_options).to include('{fail_if_no_peer_cert,false}')
-      end
-
-      it 'has the right SSL verification depth option' do
-        expect(ssl_options).to include('{depth,5}')
-      end
-
-      describe "TLS" do
-        it 'should have TLS 1.0 enabled' do
-          expect(tls_version_enabled?(rmq_host, 'tls1')).to be_truthy
-        end
-
-        it 'should have TLS 1.1 enabled' do
-          expect(tls_version_enabled?(rmq_host, 'tls1_1')).to be_truthy
-        end
-
-        it 'should have TLS 1.2 enabled' do
-          expect(tls_version_enabled?(rmq_host, 'tls1_2')).to be_truthy
-        end
-      end
+    it 'has the right SSL peer options' do
+      expect(ssl_options).to include('{fail_if_no_peer_cert,true}')
     end
   end
 end
