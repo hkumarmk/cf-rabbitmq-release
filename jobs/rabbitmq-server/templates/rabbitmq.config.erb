@@ -1,1 +1,16 @@
-<%= p("rabbitmq-server.config").unpack("m0").first %>
+<%# <%= p("rabbitmq-server.config").unpack("m0").first %1> %>
+
+<%
+ips = link('rabbitmq-server').instances.map(&:address)
+cluster_nodes = ips.map { |ip| "'rabbit@#{Digest::MD5.hexdigest(ip)}'" }.join(', ')
+
+config = %{
+[
+  {rabbit, [
+    {cluster_nodes, {[#{cluster_nodes}], disc}}
+  ]}
+].
+}
+%>
+
+<%= config %>
