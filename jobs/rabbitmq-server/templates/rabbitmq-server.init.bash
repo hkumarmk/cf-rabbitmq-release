@@ -40,8 +40,6 @@ RETVAL=0
 . /var/vcap/jobs/rabbitmq-server/etc/users
 # shellcheck disable=SC1091
 . /var/vcap/jobs/rabbitmq-server/etc/config
-# shellcheck disable=SC1091
-. /var/vcap/jobs/rabbitmq-server/lib/prepare-for-upgrade.bash
 
 remove_pid() {
     rm -f "${PID_FILE}"
@@ -137,7 +135,6 @@ start_rabbitmq () {
         RETVAL=0
         run_script "${JOB_DIR}/bin/setup.sh"
         run_script "${JOB_DIR}/bin/plugins.sh"
-        run_prepare_for_upgrade_when_first_deploy "/var/vcap/store/rabbitmq/mnesia"
 
         echo "Starting RabbitMQ"
         track_rabbitmq_erlang_vm_pid_in_pid_file
@@ -146,7 +143,7 @@ start_rabbitmq () {
             2>> "${STARTUP_ERR_LOG}" \
             0<&- &
 
-        RETVAL="$(wait_for_rabbitmq_clusterer_plugin_to_start_rabbitmq_app)"
+        RETVAL="$(wait_for_rabbitmq_app_to_start)"
         case "$RETVAL" in
             0)
                 if ! /var/vcap/jobs/rabbitmq-server/bin/node-check "rabbitmq-server.init"
@@ -198,7 +195,7 @@ track_rabbitmq_erlang_vm_pid_in_pid_file() {
   export RUNNING_UNDER_SYSTEMD=true
 }
 
-wait_for_rabbitmq_clusterer_plugin_to_start_rabbitmq_app() {
+wait_for_rabbitmq_app_to_start() {
   local retval
 
   set +e
