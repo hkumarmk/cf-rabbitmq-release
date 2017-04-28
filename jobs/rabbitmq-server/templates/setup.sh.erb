@@ -27,6 +27,8 @@ require 'digest'
 job_ip_md5 = Digest::MD5.hexdigest(job_ip)
 cookie = p('rabbitmq-server.cookie', Digest::MD5.hexdigest(ips.join))
 
+cluster_nodes = ips.map { |ip| "rabbit@#{Digest::MD5.hexdigest(ip)}" }.join(',')
+
 # TLS versions with a '.' character should include single quotes
 supported_tls_versions = %w{'tlsv1.2' 'tlsv1.1'}
 security_options = p('rabbitmq-server.ssl.security_options')
@@ -128,7 +130,7 @@ disk_alarm_threshold = p("rabbitmq-server.disk_alarm_threshold")
   CONFIG="CONFIG_FILE='${SCRIPT_DIR}/../etc/rabbitmq'"
   NODENAME="NODENAME='${SELF_NODE}'"
 
-  SERVER_START_ARGS="SERVER_START_ARGS='-rabbit log_levels [{connection,info}] -rabbit disk_free_limit <%= disk_alarm_threshold %> -rabbit cluster_partition_handling <%= cluster_partition_handling %> -rabbit halt_on_upgrade_failure false -rabbitmq_mqtt subscription_ttl 1800000"
+  SERVER_START_ARGS="SERVER_START_ARGS='-rabbit log_levels [{connection,info}] -rabbit cluster_nodes {[<%= cluster_nodes %>],disc} -rabbit disk_free_limit <%= disk_alarm_threshold %> -rabbit cluster_partition_handling <%= cluster_partition_handling %> -rabbit halt_on_upgrade_failure false -rabbitmq_mqtt subscription_ttl 1800000"
   SERVER_START_ARGS="${SERVER_START_ARGS} -rabbitmq_management http_log_dir \"${HTTP_ACCESS_LOG_DIR}\""
 
 <% if ssl %>
