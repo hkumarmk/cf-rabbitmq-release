@@ -40,6 +40,9 @@ RETVAL=0
 . /var/vcap/jobs/rabbitmq-server/etc/users
 # shellcheck disable=SC1091
 . /var/vcap/jobs/rabbitmq-server/etc/config
+# shellcheck disable=SC1091
+. /var/vcap/jobs/rabbitmq-server/lib/prepare-for-upgrade.bash
+
 
 remove_pid() {
     rm -f "${PID_FILE}"
@@ -135,6 +138,7 @@ start_rabbitmq () {
         RETVAL=0
         run_script "${JOB_DIR}/bin/setup.sh"
         run_script "${JOB_DIR}/bin/plugins.sh"
+        run_prepare_for_upgrade_when_first_deploy "/var/vcap/store/rabbitmq/mnesia"
 
         echo "Starting RabbitMQ"
         track_rabbitmq_erlang_vm_pid_in_pid_file
