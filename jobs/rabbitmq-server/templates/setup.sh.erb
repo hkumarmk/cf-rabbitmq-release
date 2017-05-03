@@ -180,6 +180,15 @@ disk_alarm_threshold = p("rabbitmq-server.disk_alarm_threshold")
       rm -rf $MIGRATION_DIR
   fi
 
+  # 4. Write out the cluster_config
+  UPGRADE_PREPARATION_NODES_FILE=/var/vcap/data/upgrade_preparation_nodes
+  rm -f $UPGRADE_PREPARATION_NODES_FILE
+  <% ips.each_index do |idx| %>
+    node="rabbit@<%= Digest::MD5.hexdigest(ips[idx]) %>"
+    echo $node >> $UPGRADE_PREPARATION_NODES_FILE
+  <% end %>
+
+
   # 4. Write out the cookie
   printf "${COOKIE}" > ${DIR}/.erlang.cookie
   ${CHOWN} ${USER}:${USER} ${DIR}/.erlang.cookie
