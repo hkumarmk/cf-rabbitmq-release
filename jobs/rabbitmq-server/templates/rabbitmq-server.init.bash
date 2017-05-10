@@ -145,37 +145,6 @@ start_rabbitmq () {
             >> "${STARTUP_LOG}" \
             2>> "${STARTUP_ERR_LOG}" \
             0<&- &
-
-        RETVAL="$(wait_for_rabbitmq_clusterer_plugin_to_start_rabbitmq_app)"
-        case "$RETVAL" in
-            0)
-                if ! /var/vcap/jobs/rabbitmq-server/bin/node-check "rabbitmq-server.init"
-                then
-                  signal_monit_that_rabbitmq_node_is_not_healthy
-                  return
-                fi
-
-                configure_users
-
-                if ! /var/vcap/jobs/rabbitmq-server/bin/cluster-check "rabbitmq-server.init"
-                then
-                  echo "RabbitMQ cluster is not healthy"
-                  remove_pid
-                  RETVAL=1
-                  return
-                fi
-
-                echo "RabbitMQ cluster is healthy"
-
-                ;;
-            *)
-                echo "RabbitMQ application failed to start while waiting for cluster to form"
-                remove_pid
-                RETVAL=1
-                ;;
-        esac
-
-        echo "RabbitMQ node started successfully."
     fi
 }
 
@@ -196,16 +165,6 @@ signal_monit_that_rabbitmq_node_is_not_healthy() {
 
 track_rabbitmq_erlang_vm_pid_in_pid_file() {
   export RUNNING_UNDER_SYSTEMD=true
-}
-
-wait_for_rabbitmq_clusterer_plugin_to_start_rabbitmq_app() {
-  local retval
-
-  set +e
-  "${CONTROL}" wait "${PID_FILE}" >> "${STARTUP_LOG}" 2>> "${STARTUP_ERR_LOG}"
-  retval="$?"
-  set -e
-  echo "$retval"
 }
 
 status_rabbitmq() {
