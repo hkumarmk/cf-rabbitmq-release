@@ -98,6 +98,7 @@ templates:
   config.erb:                               etc/config
   ensure-rabbitmq-statsdb-restart-cron.erb: bin/ensure-rabbitmq-statsdb-restart-cron
   kill-with-fire.bash:                      bin/kill-with-fire
+  definitions.json:                         etc/definitions.json
 
 provides:
   - name: rabbitmq-server

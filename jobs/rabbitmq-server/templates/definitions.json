@@ -1,0 +1,7 @@
+{
+    "vhosts": [
+        {
+            "name": "foobar42"
+        }
+    ]
+}
